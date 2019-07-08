@@ -335,6 +335,15 @@ void forward_yolo_layer(const layer l, network_state state)
 
             int mask_n = int_index(l.mask, best_n, l.n);
             if (mask_n >= 0) {
+                int class_id = state.truth[t*(4 + 1) + b*l.truths + 4];
+                if (l.map) class_id = l.map[class_id];
+                int ll=0, skip = 0;
+                for (ll=0;ll<l.num_ignore_label;ll++)
+                    if (class_id == l.ignore_label[ll]) {
+                    //printf("ignoring image %d bbox %d with label %d\n",b,t,class);
+                    skip=1;}
+                if (skip) continue;
+
                 int box_index = entry_index(l, b, mask_n*l.w*l.h + j*l.w + i, 0);
                 ious all_ious = delta_yolo_box(truth, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w*truth.h), l.w*l.h, l.iou_normalizer, l.iou_loss);
 
@@ -349,8 +358,6 @@ void forward_yolo_layer(const layer l, network_state state)
                 avg_obj += l.output[obj_index];
                 l.delta[obj_index] = l.cls_normalizer * (1 - l.output[obj_index]);
 
-                int class_id = state.truth[t*(4 + 1) + b*l.truths + 4];
-                if (l.map) class_id = l.map[class_id];
                 int class_index = entry_index(l, b, mask_n*l.w*l.h + j*l.w + i, 4 + 1);
                 delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w*l.h, &avg_cat, l.focal_loss);
 

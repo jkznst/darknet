@@ -378,6 +378,10 @@ layer parse_yolo(list *options, size_params params)
             a = strchr(a, ',') + 1;
         }
     }
+    a = option_find_str(options, "ignore_label", 0);
+	printf("ignore_label=%s\n",a);
+    l.ignore_label = parse_yolo_mask(a, &l.num_ignore_label);
+    printf("num_ignore_label=%d\n",l.num_ignore_label);
     return l;
 }
 

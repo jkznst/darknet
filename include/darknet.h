@@ -272,6 +272,8 @@ struct layer {
     int bias_match;
     int random;
     float ignore_thresh;
+    int *ignore_label;
+    int num_ignore_label;
     float truth_thresh;
     float thresh;
     float focus;
