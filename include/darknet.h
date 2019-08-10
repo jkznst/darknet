@@ -137,6 +137,7 @@ typedef enum {
     LOCAL,
     SHORTCUT,
     SCALE_CHANNELS,
+    SAM,
     ACTIVE,
     RNN,
     GRU,
@@ -279,6 +280,7 @@ struct layer {
     float focus;
     int classfix;
     int absolute;
+    int assisted_excitation;
 
     int onlyforward;
     int stopbackward;
@@ -581,6 +583,8 @@ typedef struct network {
     int time_steps;
     int step;
     int max_batches;
+    int num_boxes;
+    int train_images_num;
     float *seq_scales;
     float *scales;
     int   *steps;
