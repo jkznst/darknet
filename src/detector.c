@@ -1162,6 +1162,10 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
         char buff[1024];
         for (j = 0; j < num_labels; ++j)
         {
+            if (truth[j].id > 0)    // ignore class
+            {
+                continue;
+            }
             if (truth[j].x > 1 || truth[j].x <= 0 || truth[j].y > 1 || truth[j].y <= 0 ||
                 truth[j].w > 1 || truth[j].w <= 0 || truth[j].h > 1 || truth[j].h <= 0)
             {
