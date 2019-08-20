@@ -37,6 +37,7 @@
 #include "upsample_layer.h"
 #include "version.h"
 #include "yolo_layer.h"
+#include "fsaf_layer.h"
 
 typedef struct{
     char *type;
@@ -55,6 +56,7 @@ LAYER_TYPE string_to_layer_type(char * type)
     if (strcmp(type, "[detection]")==0) return DETECTION;
     if (strcmp(type, "[region]")==0) return REGION;
     if (strcmp(type, "[yolo]") == 0) return YOLO;
+    if (strcmp(type, "[fsaf]") == 0) return FSAF;
     if (strcmp(type, "[local]")==0) return LOCAL;
     if (strcmp(type, "[conv]")==0
             || strcmp(type, "[convolutional]")==0) return CONVOLUTIONAL;
@@ -353,6 +355,64 @@ layer parse_yolo(list *options, size_params params)
     else if (strcmp(iou_loss, "giou") == 0) l.iou_loss = GIOU;
     else l.iou_loss = IOU;
     fprintf(stderr, "[yolo] params: iou loss: %s, iou_norm: %2.2f, cls_norm: %2.2f, scale_x_y: %2.2f\n", (l.iou_loss == MSE ? "mse" : (l.iou_loss == GIOU ? "giou" : "iou")), l.iou_normalizer, l.cls_normalizer, l.scale_x_y);
+
+    l.jitter = option_find_float(options, "jitter", .2);
+    l.focal_loss = option_find_int_quiet(options, "focal_loss", 0);
+
+    l.ignore_thresh = option_find_float(options, "ignore_thresh", .5);
+    l.truth_thresh = option_find_float(options, "truth_thresh", 1);
+    l.random = option_find_int_quiet(options, "random", 0);
+
+    char *map_file = option_find_str(options, "map", 0);
+    if (map_file) l.map = read_map(map_file);
+
+    a = option_find_str(options, "anchors", 0);
+    if (a) {
+        int len = strlen(a);
+        int n = 1;
+        int i;
+        for (i = 0; i < len; ++i) {
+            if (a[i] == ',') ++n;
+        }
+        for (i = 0; i < n && i < total*2; ++i) {
+            float bias = atof(a);
+            l.biases[i] = bias;
+            a = strchr(a, ',') + 1;
+        }
+    }
+    a = option_find_str(options, "ignore_label", 0);
+	printf("ignore_label=%s\n",a);
+    l.ignore_label = parse_yolo_mask(a, &l.num_ignore_label);
+    printf("num_ignore_label=%d\n",l.num_ignore_label);
+    return l;
+}
+
+layer parse_fsaf(list *options, size_params params)
+{
+    int classes = option_find_int(options, "classes", 20);
+    // int total = option_find_int(options, "num", 1);
+    // int num = total;
+
+    // char *a = option_find_str(options, "mask", 0);
+    // int *mask = parse_yolo_mask(a, &num);
+    int max_boxes = option_find_int_quiet(options, "max", 90);
+    layer l = make_fsaf_layer(params.batch, params.w, params.h, classes, max_boxes);
+    if (l.outputs != params.inputs) {
+        printf("Error: l.outputs == params.inputs \n");
+        printf("filters= in the [convolutional]-layer doesn't correspond to classes= or mask= in [yolo]-layer \n");
+        exit(EXIT_FAILURE);
+    }
+    //assert(l.outputs == params.inputs);
+
+    l.scale_x_y = option_find_float_quiet(options, "scale_x_y", 1);
+    l.iou_normalizer = option_find_float_quiet(options, "iou_normalizer", 0.75);
+    l.cls_normalizer = option_find_float_quiet(options, "cls_normalizer", 1);
+    char *iou_loss = option_find_str_quiet(options, "iou_loss", "mse");   //  "iou");
+
+    if (strcmp(iou_loss, "mse") == 0) l.iou_loss = MSE;
+    else if (strcmp(iou_loss, "giou") == 0) l.iou_loss = GIOU;
+    else l.iou_loss = IOU;
+    fprintf(stderr, "[fsaf] params: iou loss: %s, iou_norm: %2.2f, cls_norm: %2.2f, scale_x_y: %2.2f\n", (l.iou_loss == MSE ? "mse" : (l.iou_loss == GIOU ? "giou" : "iou")), l.iou_normalizer, l.cls_normalizer, l.scale_x_y);
 
     l.jitter = option_find_float(options, "jitter", .2);
     l.focal_loss = option_find_int_quiet(options, "focal_loss", 0);
@@ -896,6 +956,8 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
             l = parse_region(options, params);
         }else if (lt == YOLO) {
             l = parse_yolo(options, params);
+        }else if (lt == FSAF) {
+            l = parse_fsaf(options, params);
         }else if(lt == DETECTION){
             l = parse_detection(options, params);
         }else if(lt == SOFTMAX){

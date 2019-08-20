@@ -148,6 +148,7 @@ typedef enum {
     XNOR,
     REGION,
     YOLO,
+    FSAF,
     ISEG,
     REORG,
     REORG_OLD,
