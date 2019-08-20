@@ -123,6 +123,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     args.flip = net.flip;
     args.jitter = jitter;
     args.num_boxes = l.max_boxes;
+    net.num_boxes = args.num_boxes;
+    net.train_images_num = train_images_num;
     args.d = &buffer;
     args.type = DETECTION_DATA;
     args.threads = 64;    // 16 or 64
@@ -1160,6 +1162,10 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
         char buff[1024];
         for (j = 0; j < num_labels; ++j)
         {
+            if (truth[j].id > 0)    // ignore class
+            {
+                continue;
+            }
             if (truth[j].x > 1 || truth[j].x <= 0 || truth[j].y > 1 || truth[j].y <= 0 ||
                 truth[j].w > 1 || truth[j].w <= 0 || truth[j].h > 1 || truth[j].h <= 0)
             {
